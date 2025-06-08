@@ -1,4 +1,4 @@
-package my_application.project.controller;
+package Weather_application.basic.controller;
 
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.client.RestTemplate;
