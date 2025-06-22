@@ -39,7 +39,7 @@ pipeline {
             when {
                 expression {
                    // This shell command checks for both repositories
-                   def mavenExists = sh(script: "aws ecr describe-repositories --repository-names maven_artifacts --region $AWS_REGION", returnStatus: true) == 0
+                   def mavenExists = sh(script: "aws ecr describe-repositories --repository-names maven-build --region $AWS_REGION", returnStatus: true) == 0
                    def tomcatExists = sh(script: "aws ecr describe-repositories --repository-names tomcat --region $AWS_REGION", returnStatus: true) == 0
 
                    return !(mavenExists && tomcatExists) // Run only if at least one repo is missing
@@ -78,7 +78,7 @@ pipeline {
                     def ecrUrl = "${env.AWS_ACCOUNT_ID}.dkr.ecr.${env.AWS_REGION}.amazonaws.com"
                     def commitId = sh(script: 'git rev-parse --short HEAD', returnStdout: true).trim()
                     def versionTag = "v${env.BUILD_NUMBER}-${commitId}"
-                    def images = ['maven-build':'maven-build', 'custom-tomcat':'custom-tomcat']
+                    def images = ['maven-build':'maven-build', 'tomcat':'tomcat']
 
                     images.each { localName, repoName ->
                         def localImage = "${localName}:latest"
