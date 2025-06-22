@@ -99,6 +99,28 @@ pipeline {
                 }
             }
         }
+         stage('Deploy to Kubernetes') {
+            steps {
+                script {
+                    def ecrUrl = "${env.AWS_ACCOUNT_ID}.dkr.ecr.${env.AWS_REGION}.amazonaws.com"
+
+                     withCredentials([file(credentialsId: 'kubeconfig-prod', variable: 'KUBECONFIG')]) {
+                         sh """
+                         # Apply the base deployment YAML (once or if needed for initial deploy)
+                         kubectl apply -f k8s/spring-deployment.yaml --validate=false
+                         kubectl apply -f k8s/tomcat-service.yaml --validate=false
+
+                         # Update container images dynamically using the Jenkins-generated version tag
+                         kubectl set image deployment/springapp-tomcat-deployment \
+                             tomcat=${ecrUrl}/tomcat:${IMAGE_VERSION}
+
+                         # Wait for rollout to complete
+                         kubectl rollout status deployment/springapp-tomcat-deployment
+                         """
+                    }
+                }
+            }
+        }
     }
 }
     
