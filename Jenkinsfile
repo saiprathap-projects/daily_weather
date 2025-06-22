@@ -5,8 +5,7 @@ pipeline {
         AWS_REGION = 'us-east-1'
         AWS_ACCOUNT_ID = '340752824368'
         ECR_REPO = 'flaskapp'
-        KUBECONFIG = "${WORKSPACE}/config"
-        
+        // KUBECONFIG should be set via withCredentials block, not here.
     }
 
     stages {
@@ -15,36 +14,36 @@ pipeline {
                 deleteDir()
             }
         }
-      stage('Clone Repository') {
+
+        stage('Clone Repository') {
             steps {
                 checkout([$class: 'GitSCM',
                     branches: [[name: '*/main']],
                     userRemoteConfigs: [[
                         url: 'https://github.com/saiprathap-projects/daily_weather.git',
-                        credentialsId: 'git-cred' // Replace with your Jenkins GitHub credentials ID
+                        credentialsId: 'git-cred'
                     ]]
                 ])
             }
         }
+
         stage('Login to ECR') {
             steps {
-                withCredentials([usernamePassword(credentialsId: 'aws-creds', usernameVariable: 'AWS_ACCESS_KEY_ID', passwordVariable: 'AWS_SECRET_ACCESS_KEY')]) 
-                {
+                withCredentials([usernamePassword(credentialsId: 'aws-creds', usernameVariable: 'AWS_ACCESS_KEY_ID', passwordVariable: 'AWS_SECRET_ACCESS_KEY')]) {
                     sh '''
                         aws configure set aws_access_key_id $AWS_ACCESS_KEY_ID
                         aws configure set aws_secret_access_key $AWS_SECRET_ACCESS_KEY
                         aws configure set region $AWS_REGION
-                        
                         aws ecr get-login-password --region $AWS_REGION | \
                         docker login --username AWS --password-stdin $AWS_ACCOUNT_ID.dkr.ecr.$AWS_REGION.amazonaws.com
                     '''
                 }
             }
         }
-        stage ('Terraform - Create ECR') {
-            when {
-                expression {
-                   // This shell command checks for both repositories
+
+        stage('Terraform - Create ECR') {
+            steps {
+                script {
                     def mavenRepo = sh(script: "aws ecr describe-repositories --repository-names maven-build --region ${env.AWS_REGION}", returnStatus: true)
                     def tomcatRepo = sh(script: "aws ecr describe-repositories --repository-names tomcat --region ${env.AWS_REGION}", returnStatus: true)
 
@@ -62,17 +61,16 @@ pipeline {
                 }
             }
         }
+
         stage('Build Docker Image') {
             steps {
-                script {
-                    sh '''
-                    cd $WORKSPACE
+                sh '''
                     docker compose version
                     docker compose build --no-cache
-                    '''
-                }
+                '''
             }
         }
+
         stage('Tag & Push image to ECR') {
             steps {
                 script {
@@ -87,40 +85,19 @@ pipeline {
                         def versionedTag  = "${ecrUrl}/${imageName}:${versionTag}"
 
                         sh """
-                        docker tag ${localImage} ${latestTag}
-                        docker tag ${localImage} ${versionedTag}
-                        docker push ${latestTag}
-                        docker push ${versionedTag}
+                            docker tag ${localImage} ${latestTag}
+                            docker tag ${localImage} ${versionedTag}
+                            docker push ${latestTag}
+                            docker push ${versionedTag}
                         """
                     }
 
-                    // Save version tag for later use (like updating deployment)
+                    // Assign image version as an environment variable for later use
                     env.IMAGE_VERSION = versionTag
                 }
             }
         }
-         stage('Deploy to Kubernetes') {
+
+        stage('Deploy to Kubernetes') {
             steps {
-                script {
-                    def ecrUrl = "${env.AWS_ACCOUNT_ID}.dkr.ecr.${env.AWS_REGION}.amazonaws.com"
-
-                     withCredentials([file(credentialsId: 'kubeconfig-prod', variable: 'KUBECONFIG')]) {
-                         sh """
-                         # Apply the base deployment YAML (once or if needed for initial deploy)
-                         kubectl apply -f k8s/spring-deployment.yaml --validate=false
-                         kubectl apply -f k8s/tomcat-service.yaml --validate=false
-
-                         # Update container images dynamically using the Jenkins-generated version tag
-                         kubectl set image deployment/springapp-tomcat-deployment \
-                             tomcat=${ecrUrl}/tomcat:${IMAGE_VERSION}
-
-                         # Wait for rollout to complete
-                         kubectl rollout status deployment/springapp-tomcat-deployment
-                         """
-                    }
-                }
-            }
-        }
-    }
-}
-    
+                withCredentials([file(credentialsId: 'kubeconfig-prod', variable]()
