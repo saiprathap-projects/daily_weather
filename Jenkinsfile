@@ -100,4 +100,21 @@ pipeline {
 
         stage('Deploy to Kubernetes') {
             steps {
-                withCredentials([file(credentialsId: 'kubeconfig-prod', variable]()
+                withCredentials([file(credentialsId: 'kubeconfig-prod', variable: 'KUBECONFIG')]) {
+                    script {
+                        def ecrUrl = "${env.AWS_ACCOUNT_ID}.dkr.ecr.${env.AWS_REGION}.amazonaws.com"
+                        sh """
+                            kubectl apply -f k8s/spring-deployment.yaml --validate=false
+                            kubectl apply -f k8s/tomcat-service.yaml --validate=false
+
+                            kubectl set image deployment/springapp-tomcat-deployment \
+                                tomcat=${ecrUrl}/tomcat:${IMAGE_VERSION}
+
+                            kubectl rollout status deployment/springapp-tomcat-deployment
+                        """
+                    }
+                }
+            }
+        }
+    }
+}
