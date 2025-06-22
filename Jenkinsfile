@@ -78,7 +78,7 @@ pipeline {
                     def ecrUrl = "${env.AWS_ACCOUNT_ID}.dkr.ecr.${env.AWS_REGION}.amazonaws.com"
                     def commitId = sh(script: 'git rev-parse --short HEAD', returnStdout: true).trim()
                     def versionTag = "v${env.BUILD_NUMBER}-${commitId}"
-                    def images = ['maven_artifacts':'maven_artifacts', 'tomcat':'tomcat']
+                    def images = ['maven-build':'maven-build', 'custom-tomcat':'custom-tomcat']
 
                     images.each { localName, repoName ->
                         def localImage = "${localName}:latest"
