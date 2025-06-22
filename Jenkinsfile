@@ -15,9 +15,15 @@ pipeline {
                 deleteDir()
             }
         }
-        stage('Clone Repository') {
+      stage('Clone Repository') {
             steps {
-                git branch: 'main', url: 'https://github.com/saiprathap-projects/daily_weather.git'
+                checkout([$class: 'GitSCM',
+                    branches: [[name: '*/main']],
+                    userRemoteConfigs: [[
+                        url: 'https://github.com/saiprathap-projects/daily_weather.git',
+                        credentialsId: 'git-cred' // Replace with your Jenkins GitHub credentials ID
+                    ]]
+                ])
             }
         }
         stage('Login to ECR') {
@@ -39,25 +45,20 @@ pipeline {
             when {
                 expression {
                    // This shell command checks for both repositories
-                   def mavenExists = sh(script: "aws ecr describe-repositories --repository-names maven-build --region $AWS_REGION", returnStatus: true) == 0
-                   def tomcatExists = sh(script: "aws ecr describe-repositories --repository-names tomcat --region $AWS_REGION", returnStatus: true) == 0
+                    def mavenRepo = sh(script: "aws ecr describe-repositories --repository-names maven-build --region ${env.AWS_REGION}", returnStatus: true)
+                    def tomcatRepo = sh(script: "aws ecr describe-repositories --repository-names tomcat --region ${env.AWS_REGION}", returnStatus: true)
 
-                   return !(mavenExists && tomcatExists) // Run only if at least one repo is missing
-                }
-            }
-            steps {
-                script {
-                    sh '''
-                        cd terraform/ECR
-                        export AWS_ACCESS_KEY_ID=$AWS_ACCESS_KEY_ID
-                        export AWS_SECRET_ACCESS_KEY=$AWS_SECRET_ACCESS_KEY
-                        export AWS_REGION=$AWS_REGION
-
-                        terraform init
-                        terraform plan
-                        terraform apply -auto-approve
-
-                       '''
+                    if (mavenRepo != 0 || tomcatRepo != 0) {
+                        withCredentials([usernamePassword(credentialsId: 'aws-creds', usernameVariable: 'AWS_ACCESS_KEY_ID', passwordVariable: 'AWS_SECRET_ACCESS_KEY')]) {
+                            sh '''
+                                cd terraform/ECR
+                                terraform init
+                                terraform apply -auto-approve
+                            '''
+                        }
+                    } else {
+                        echo "ECR repositories already exist. Skipping Terraform apply."
+                    }
                 }
             }
         }
