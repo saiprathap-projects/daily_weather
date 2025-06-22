@@ -1,0 +1,35 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: springapp-tomcat-deployment
+  labels:
+    app: springapp-tomcat
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: springapp-tomcat
+  template:
+    metadata:
+      labels:
+        app: springapp-tomcat
+    spec:
+      imagePullSecrets:
+        - name: ecr-creds
+      containers:
+        - name: tomcat
+          image: 340752824368.dkr.ecr.us-east-1.amazonaws.com/tomcat:latest
+          ports:
+            - containerPort: 8080
+          readinessProbe:
+            httpGet:
+              path: /weather?city=London
+              port: 8080
+            initialDelaySeconds: 5
+            periodSeconds: 10
+          livenessProbe:
+            httpGet:
+              path: /weather?city=London
+              port: 8080
+            initialDelaySeconds: 15
+            periodSeconds: 20
