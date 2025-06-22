@@ -6,19 +6,21 @@ services:
       context: .
     image: maven-build
     container_name: mvn_build
+    working_dir: /app
     volumes:
-      - ./target:/app/target   # so WAR can be reused by Tomcat
+      - .:/app                # Bind source code for build
+      - ./target:/app/target # Store build artifacts
     command: mvn clean package -DskipTests
 
   tomcat:
     build:
       context: ./tomcat
-    image: tomcat
+    image: custom-tomcat
     container_name: tomcat
     ports:
       - "8080:8080"
     depends_on:
       - maven
     volumes:
-      - ./target:/usr/local/tomcat/webapps  # mount WAR into Tomcat
+      - ./target:/usr/local/tomcat/webapps
     restart: always
