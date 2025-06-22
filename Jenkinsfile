@@ -79,12 +79,12 @@ pipeline {
                     def ecrUrl = "${env.AWS_ACCOUNT_ID}.dkr.ecr.${env.AWS_REGION}.amazonaws.com"
                     def commitId = sh(script: 'git rev-parse --short HEAD', returnStdout: true).trim()
                     def versionTag = "v${env.BUILD_NUMBER}-${commitId}"
-                    def images = ['maven-build':'maven-build', 'tomcat':'tomcat']
+                    def images = ['tomcat']
 
-                    images.each { localName, repoName ->
-                        def localImage = "${localName}:latest"
-                        def latestTag = "${ecrUrl}/${repoName}:latest"
-                        def versionedTag = "${ecrUrl}/${repoName}:${versionTag}"
+                    images.each { imageName ->
+                        def localImage = "${imageName}:latest"
+                        def latestTag = "${ecrUrl}/${imageName}:latest"
+                        def versionedTag  = "${ecrUrl}/${imageName}:${versionTag}"
 
                         sh """
                         docker tag ${localImage} ${latestTag}
