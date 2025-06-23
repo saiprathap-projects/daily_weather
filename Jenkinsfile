@@ -16,16 +16,9 @@ pipeline {
 
         stage('Clone Repository') {
             steps {
-                checkout([$class: 'GitSCM',
-                    branches: [[name: '*/main']],
-                    userRemoteConfigs: [[
-                        url: 'https://github.com/saiprathap-projects/daily_weather.git',
-                        credentialsId: 'git-cred'
-                    ]]
-                ])
+                 git branch: 'main', url: 'https://github.com/saiprathap-projects/daily_weather.git'
             }
         }
-
         stage('Login to ECR') {
             steps {
                 withCredentials([usernamePassword(credentialsId: 'aws-creds', usernameVariable: 'AWS_ACCESS_KEY_ID', passwordVariable: 'AWS_SECRET_ACCESS_KEY')]) {
