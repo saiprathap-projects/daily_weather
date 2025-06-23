@@ -6,8 +6,6 @@ services:
     container_name: mvn_build
     working_dir: /app
     command: mvn clean package -DskipTests
-    volumes:
-      - ./target:/app/target
 
   tomcat:
     build:
