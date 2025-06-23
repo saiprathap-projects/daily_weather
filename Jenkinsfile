@@ -67,6 +67,9 @@ pipeline {
                 sh '''
                     docker compose version
                     docker compose build --no-cache
+                    docker compose run --rm maven
+                    ls -l target/
+                    docker compose build --no-cache tomcat
                 '''
             }
         }
