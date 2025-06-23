@@ -4,7 +4,7 @@ pipeline {
     environment {
         AWS_REGION = 'us-east-1'
         AWS_ACCOUNT_ID = '340752824368'
-        ECR_REPO = 'tomcat'  // Only tomcat image needed now
+        ECR_REPO = 'tomcat'
     }
 
     stages {
@@ -38,19 +38,23 @@ pipeline {
 
         stage('Terraform - Create ECR') {
             steps {
-                script {
-                    def tomcatRepo = sh(script: "aws ecr describe-repositories --repository-names tomcat --region ${env.AWS_REGION}", returnStatus: true)
+                withCredentials([usernamePassword(credentialsId: 'aws-creds', usernameVariable: 'AWS_ACCESS_KEY_ID', passwordVariable: 'AWS_SECRET_ACCESS_KEY')]) {
+                    script {
+                        def repoExists = sh(
+                            script: "aws ecr describe-repositories --repository-names ${env.ECR_REPO} --region ${env.AWS_REGION}",
+                            returnStatus: true
+                        )
 
-                    if (tomcatRepo != 0) {
-                        withCredentials([usernamePassword(credentialsId: 'aws-creds', usernameVariable: 'AWS_ACCESS_KEY_ID', passwordVariable: 'AWS_SECRET_ACCESS_KEY')]) {
-                            sh '''
-                                cd terraform/ECR
-                                terraform init
-                                terraform apply -auto-approve
-                            '''
+                        if (repoExists != 0) {
+                            dir('terraform/ECR') {
+                                sh '''
+                                    terraform init
+                                    terraform apply -auto-approve
+                                '''
+                            }
+                        } else {
+                            echo "ECR repository already exists. Skipping Terraform."
                         }
-                    } else {
-                        echo "ECR repository already exists. Skipping Terraform apply."
                     }
                 }
             }
@@ -58,9 +62,7 @@ pipeline {
 
         stage('Build Docker Image') {
             steps {
-                sh '''
-                    docker build -t $ECR_REPO:latest .
-                '''
+                sh 'docker build -t $ECR_REPO:latest .'
             }
         }
 
@@ -70,16 +72,12 @@ pipeline {
                     def ecrUrl = "${env.AWS_ACCOUNT_ID}.dkr.ecr.${env.AWS_REGION}.amazonaws.com"
                     def commitId = sh(script: 'git rev-parse --short HEAD', returnStdout: true).trim()
                     def versionTag = "v${env.BUILD_NUMBER}-${commitId}"
-                    def imageName = "tomcat"
-                    def localImage = "${imageName}:latest"
-                    def latestTag = "${ecrUrl}/${imageName}:latest"
-                    def versionedTag = "${ecrUrl}/${imageName}:${versionTag}"
 
                     sh """
-                        docker tag ${localImage} ${latestTag}
-                        docker tag ${localImage} ${versionedTag}
-                        docker push ${latestTag}
-                        docker push ${versionedTag}
+                        docker tag ${ECR_REPO}:latest ${ecrUrl}/${ECR_REPO}:latest
+                        docker tag ${ECR_REPO}:latest ${ecrUrl}/${ECR_REPO}:${versionTag}
+                        docker push ${ecrUrl}/${ECR_REPO}:latest
+                        docker push ${ecrUrl}/${ECR_REPO}:${versionTag}
                     """
 
                     env.IMAGE_VERSION = versionTag
@@ -93,11 +91,11 @@ pipeline {
                     script {
                         def ecrUrl = "${env.AWS_ACCOUNT_ID}.dkr.ecr.${env.AWS_REGION}.amazonaws.com"
                         sh """
-                            kubectl apply -f k8s/spring-deployment.yml --validate=false
+                            kubectl apply -f k8s/tomcat-deployment.yml --validate=false
                             kubectl apply -f k8s/tomcat-service.yml --validate=false
 
                             kubectl set image deployment/springapp-tomcat-deployment \
-                                tomcat=${ecrUrl}/tomcat:${IMAGE_VERSION}
+                                tomcat=${ecrUrl}/${ECR_REPO}:${IMAGE_VERSION}
 
                             kubectl rollout status deployment/springapp-tomcat-deployment
                         """
