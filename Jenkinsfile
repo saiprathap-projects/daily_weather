@@ -68,7 +68,7 @@ pipeline {
                     docker compose version
                     docker compose build --no-cache
                     docker compose run --rm maven
-                    mv target/*.war tomcat/
+                    mv target/basic-0.0.1-SNAPSHOT.war tomcat/ROOT.war
                     docker compose build --no-cache tomcat
                 '''
             }
