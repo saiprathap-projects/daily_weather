@@ -62,18 +62,21 @@ pipeline {
             }
         }
 
-        stage('Build Docker Image') {
+        stage('maven build') {
             steps {
                 sh '''
-                    docker compose version
-                    docker compose build --no-cache
-                    docker compose run --rm maven
-                    mv target/basic-0.0.1-SNAPSHOT.war tomcat/ROOT.war
-                    docker compose build --no-cache tomcat
+                    docker run --rm -v $PWD:/app -w /app maven:3.9.6 mvn clean package -DskipTests
+                    cp target/*.war tomcat/ 
                 '''
             }
         }
-
+        stage( 'Build Tomcat Image') {
+            steps {
+                sh '''
+                    docker build -t $ECR_REPO:latest ./tomcat
+                '''
+            }
+        }
         stage('Tag & Push image to ECR') {
             steps {
                 script {
