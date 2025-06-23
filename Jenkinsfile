@@ -4,8 +4,7 @@ pipeline {
     environment {
         AWS_REGION = 'us-east-1'
         AWS_ACCOUNT_ID = '340752824368'
-        ECR_REPO = 'flaskapp'
-        // KUBECONFIG should be set via withCredentials block, not here.
+        ECR_REPO = 'tomcat'
     }
 
     stages {
@@ -44,10 +43,9 @@ pipeline {
         stage('Terraform - Create ECR') {
             steps {
                 script {
-                    def mavenRepo = sh(script: "aws ecr describe-repositories --repository-names maven-build --region ${env.AWS_REGION}", returnStatus: true)
                     def tomcatRepo = sh(script: "aws ecr describe-repositories --repository-names tomcat --region ${env.AWS_REGION}", returnStatus: true)
 
-                    if (mavenRepo != 0 || tomcatRepo != 0) {
+                    if ( tomcatRepo != 0) {
                         withCredentials([usernamePassword(credentialsId: 'aws-creds', usernameVariable: 'AWS_ACCESS_KEY_ID', passwordVariable: 'AWS_SECRET_ACCESS_KEY')]) {
                             sh '''
                                 cd terraform/ECR
