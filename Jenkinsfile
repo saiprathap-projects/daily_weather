@@ -13,10 +13,9 @@ pipeline {
                 deleteDir()
             }
         }
-
         stage('Clone Repository') {
             steps {
-                 git branch: 'main', url: 'https://github.com/saiprathap-projects/daily_weather.git'
+                 git credentialsId: 'git-cred', branch: 'main', url: 'https://github.com/saiprathap-projects/daily_weather.git'
             }
         }
         stage('Login to ECR') {
