@@ -10,7 +10,7 @@ pipeline {
     stages {
         stage('Clean Workspace') {
             steps {
-                deleteDir()
+                sh 'rm -rf * .git'
             }
         }
         stage('Clone Repository') {
